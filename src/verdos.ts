@@ -1,5 +1,40 @@
 import * as ts from "typescript";
 
+interface Entry {
+    fileName?: string,
+    name?: string,
+    type?: string,
+    constructors?: Entry[],
+    parameters?: Entry[],
+    returnType?: string
+};
+
+/** Serialize a symbol into a json object */
+function serializeSymbol(symbol: ts.Symbol, checker : ts.TypeChecker): Entry {
+    return {
+        name: symbol.getName(),
+        type: checker.typeToString(checker.getTypeOfSymbolAtLocation(symbol, symbol.valueDeclaration!))
+    };
+}
+
+/** Serialize a class symbol information */
+function serializeClass(symbol: ts.Symbol, checker : ts.TypeChecker) {
+    let details = serializeSymbol(symbol, checker);
+
+    // Get the construct signatures
+    let constructorType = checker.getTypeOfSymbolAtLocation(symbol, symbol.valueDeclaration!);
+    details.constructors = constructorType.getConstructSignatures().map(p => serializeSignature(p, checker));
+    return details;
+}
+
+/** Serialize a signature (call or construct) */
+function serializeSignature(signature: ts.Signature, checker : ts.TypeChecker) {
+    return {
+        parameters: signature.parameters.map(p => serializeSymbol(p, checker)),
+        returnType: checker.typeToString(signature.getReturnType())
+    };
+}
+
 //Checkes if Symbol is exported
 function isNodeExported(node: ts.Node): boolean {
     return ((ts.getCombinedModifierFlags(node) & ts.ModifierFlags.Export) !== 0) ||
@@ -8,7 +43,7 @@ function isNodeExported(node: ts.Node): boolean {
 }
 
 ///Visits Symbol
-function visit(node: ts.Node, checker : ts.TypeChecker, output) {
+function visit(node: ts.Node, checker : ts.TypeChecker, output : Entry[]) {
     if (!isNodeExported(node)) {
         return;
     }
@@ -17,7 +52,7 @@ function visit(node: ts.Node, checker : ts.TypeChecker, output) {
         // This is a top level class, get its symbol
         let symbol = checker.getSymbolAtLocation(node.name);
         if (symbol) {
-            output.push(serializeClass(symbol));
+            output.push(serializeClass(symbol, checker));
         }
         // No need to walk any further, class expressions/inner declarations
         // cannot be exported
@@ -25,7 +60,7 @@ function visit(node: ts.Node, checker : ts.TypeChecker, output) {
     else if (ts.isFunctionDeclaration(node) && node.name) {
         let symbol = checker.getSymbolAtLocation(node.name);
         if (symbol) {
-            output.push(serializeFunction(symbol));
+            output.push(serializeSymbol(symbol, checker));
         }
     }
     else if (ts.isModuleDeclaration(node)) {
@@ -34,7 +69,7 @@ function visit(node: ts.Node, checker : ts.TypeChecker, output) {
     }
 }
 
-function parse(fileNames: string[], opts: ts.CompilerOptions) {
+function parse(fileNames: string[], opts: ts.CompilerOptions) : Entry[] {
     let program = ts.createProgram(fileNames, opts);
     let checker = program.getTypeChecker()
 

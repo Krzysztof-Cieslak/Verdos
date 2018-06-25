@@ -1,4 +1,5 @@
-import * as ts from "typescript";
+import * as ts from 'typescript';
+import * as fs from 'fs';
 
 interface Entry {
     fileName?: string,
@@ -84,8 +85,8 @@ function parse(fileNames: string[], opts: ts.CompilerOptions) : Entry[] {
 }
 
 export function main(args: string[]): void {
-    parse(args, {
+    let output = parse(args, {
         target: ts.ScriptTarget.ES5, module: ts.ModuleKind.CommonJS
     })
-    console.log('Hello, world!');
+    fs.writeFileSync('test.json', JSON.stringify(output, undefined, 4))
 }

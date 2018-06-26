@@ -9,12 +9,11 @@
             "request": "launch",
             "preLaunchTask": "Build",
             "name": "Launch Program",
-            "program": "${workspaceFolder}/app.js",
+            "program": "${workspaceFolder}/src/app.js",
             "args": [
                 "${workspaceFolder}/src/verdos.ts"
             ],
             "outFiles": [
-                "${workspaceFolder}/app.js",
                 "${workspaceFolder}/**/*.js"
             ]
         }

@@ -38,9 +38,7 @@ function serializeSignature(signature: ts.Signature, checker : ts.TypeChecker) {
 
 //Checkes if Symbol is exported
 function isNodeExported(node: ts.Node): boolean {
-    return ((ts.getCombinedModifierFlags(node) & ts.ModifierFlags.Export) !== 0) ||
-           (!!node.parent && node.parent.kind === ts.SyntaxKind.SourceFile) ||
-           (!!node.parent && node.parent.kind === ts.SyntaxKind.ClassDeclaration && ((ts.getCombinedModifierFlags(node) & ts.ModifierFlags.Export) !== 0) );
+    return (ts.getCombinedModifierFlags(node) & ts.ModifierFlags.Export) !== 0;
 }
 
 ///Visits Symbol

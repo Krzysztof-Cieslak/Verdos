@@ -6,6 +6,7 @@ interface Entry {
     name?: string,
     type?: string,
     constructors?: Entry[],
+    signature?: Entry,
     parameters?: Entry[],
     returnType?: string
 };
@@ -36,16 +37,30 @@ function serializeSignature(signature: ts.Signature, checker : ts.TypeChecker) {
     };
 }
 
-//Checkes if Symbol is exported
-function isNodeExported(node: ts.Node): boolean {
-    return (ts.getCombinedModifierFlags(node) & ts.ModifierFlags.Export) !== 0;
+/** Serialize a function symbol information */
+function serializeFunction(symbol: ts.Symbol, checker : ts.TypeChecker) {
+    let details = serializeSymbol(symbol, checker);
+
+    let constructorType = checker.getTypeOfSymbolAtLocation(symbol, symbol.valueDeclaration!);
+    let p = constructorType.getCallSignatures()[0];
+    details.signature = serializeSignature(p, checker);
+    return details;
 }
 
-///Visits Symbol
+/** Checkes if Symbol is exported */
+function isNodeExported(node: ts.Node): boolean {
+    return ((ts.getCombinedModifierFlags(node) & ts.ModifierFlags.Export) !== 0) || ((ts.getCombinedModifierFlags(node) & ts.ModifierFlags.Public) !== 0);
+}
+
+/** Visits Symbol */
 function visit(node: ts.Node, checker : ts.TypeChecker, output : Entry[]) {
+    console.log("--------")
+    console.log(node.getText())
     if (!isNodeExported(node)) {
+        console.log("Not exported")
         return;
     }
+    console.log("Exported")
 
     if (ts.isClassDeclaration(node) && node.name) {
         // This is a top level class, get its symbol
@@ -53,18 +68,23 @@ function visit(node: ts.Node, checker : ts.TypeChecker, output : Entry[]) {
         if (symbol) {
             output.push(serializeClass(symbol, checker));
         }
-        // No need to walk any further, class expressions/inner declarations
-        // cannot be exported
+        node.forEachChild( (n) => (visit(n, checker, output)))
     }
     else if (ts.isFunctionDeclaration(node) && node.name) {
         let symbol = checker.getSymbolAtLocation(node.name);
         if (symbol) {
-            output.push(serializeSymbol(symbol, checker));
+            output.push(serializeFunction(symbol, checker));
         }
     }
     else if (ts.isModuleDeclaration(node)) {
         // This is a namespace, visit its children
         ts.forEachChild(node,  n => (visit(n, checker, output)));
+    }
+    else if (ts.isMethodDeclaration(node) && node.name) {
+        let symbol = checker.getSymbolAtLocation(node.name);
+        if (symbol) {
+            output.push(serializeFunction(symbol, checker));
+        }
     }
 }
 
